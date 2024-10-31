@@ -7,6 +7,11 @@ import (
 	"github.com/IBM/sarama"
 )
 
+type KafkaConsumerGroup struct {
+	cg     sarama.ConsumerGroup
+	topics []string
+}
+
 type exampleConsumerGroupHandler struct{}
 
 func (exampleConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
@@ -16,23 +21,37 @@ func (h exampleConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSessi
 		fmt.Printf("Message topic:%q partition:%d offset:%d\n", msg.Topic, msg.Partition, msg.Offset)
 		sess.MarkMessage(msg, "")
 	}
+	sess.Commit()
 	return nil
 }
 
-func NewConsumerGroup() {
+func consumerGroupConfig() *sarama.Config {
 	config := sarama.NewConfig()
 	config.Version = sarama.V2_0_0_0 // specify appropriate version
 	config.Consumer.Return.Errors = true
+	config.Consumer.Offsets.AutoCommit.Enable = false
+	return config
+}
 
-	group, err := sarama.NewConsumerGroup([]string{"localhost:9092"}, "my-group", config)
+func NewConsumerGroup(kafkaUrl []string, groupId string, topics []string) *KafkaConsumerGroup {
+
+	group, err := sarama.NewConsumerGroup(kafkaUrl, groupId, consumerGroupConfig())
 	if err != nil {
 		panic(err)
 	}
-	defer func() { _ = group.Close() }()
+
+	return &KafkaConsumerGroup{
+		cg: group,
+	}
+}
+
+func (k KafkaConsumerGroup) Start() {
+
+	defer func() { _ = k.cg.Close() }()
 
 	// Track errors
 	go func() {
-		for err := range group.Errors() {
+		for err := range k.cg.Errors() {
 			fmt.Println("ERROR", err)
 		}
 	}()
@@ -40,13 +59,12 @@ func NewConsumerGroup() {
 	// Iterate over consumer sessions.
 	ctx := context.Background()
 	for {
-		topics := []string{"my-topic"}
 		handler := exampleConsumerGroupHandler{}
 
 		// `Consume` should be called inside an infinite loop, when a
 		// server-side rebalance happens, the consumer session will need to be
 		// recreated to get the new claims
-		err := group.Consume(ctx, topics, handler)
+		err := k.cg.Consume(ctx, k.topics, handler)
 		if err != nil {
 			panic(err)
 		}
