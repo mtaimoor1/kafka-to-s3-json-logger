@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/mtaimoor1/kafka-logger/config"
@@ -24,15 +26,18 @@ func main() {
 
 	topic, err := cfg.GetConfig("topic", "")
 	if err != nil {
-		log.Fatal("Topics not found in the config file")
+		log.Print(err)
 	}
 
-	kafka_consumer := consumer.NewKafkaConsumer(topic)
-
+	// kafka_consumer := consumer.NewKafkaConsumer(topic)
+	kafkaUrl, err := cfg.GetConfig("brokers", "localhost:29092")
 	if err != nil {
-		log.Fatalf("Unable to create consumer: %v", err)
+		log.Print(err)
 	}
+	log.Printf("Creating consumer group for %s on broker %s.", topic, kafkaUrl)
+	consumer_group := consumer.NewConsumerGroup(strings.Split(kafkaUrl, ","), fmt.Sprintf("go_%s", topic), strings.Split(topic, ","))
+	log.Print("Consumer group created!")
 
-	go kafka_consumer.Start()
+	consumer_group.Start()
 
 }
