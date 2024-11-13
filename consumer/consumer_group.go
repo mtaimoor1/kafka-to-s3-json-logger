@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/IBM/sarama"
+	"github.com/mtaimoor1/kafka-logger/writers"
 )
 
 type KafkaConsumerGroup struct {
@@ -13,7 +14,9 @@ type KafkaConsumerGroup struct {
 	topics []string
 }
 
-type exampleConsumerGroupHandler struct{}
+type exampleConsumerGroupHandler struct {
+	writer writers.Writer
+}
 
 func (exampleConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
 func (exampleConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
