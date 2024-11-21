@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/IBM/sarama"
-	"github.com/mtaimoor1/kafka-logger/writers"
+	// "github.com/mtaimoor1/kafka-logger/writers"
 )
 
 type KafkaConsumerGroup struct {
@@ -14,16 +14,16 @@ type KafkaConsumerGroup struct {
 	topics []string
 }
 
-type exampleConsumerGroupHandler struct {
-	writer writers.Writer
+type jsonConsumerGroupHandler struct {
+	// writer writers.Writer
 }
 
-func (exampleConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
-func (exampleConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
-func (h exampleConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (jsonConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
+func (jsonConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
+func (h jsonConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for msg := range claim.Messages() {
 		fmt.Printf("Message topic:%q partition:%d offset:%d\n", msg.Topic, msg.Partition, msg.Offset)
-		fmt.Printf("Content: %s\n", string(msg.Value))
+		fmt.Printf("Type: %T Content: %s\n", msg.Value, string(msg.Value))
 		sess.MarkMessage(msg, "")
 	}
 	sess.Commit()
@@ -35,6 +35,7 @@ func consumerGroupConfig() *sarama.Config {
 	config.Version = sarama.V2_7_0_0 // specify appropriate version
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.AutoCommit.Enable = false
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest // TODO: Just for testing remove it once done
 	return config
 }
 
@@ -66,7 +67,7 @@ func (k KafkaConsumerGroup) Start() {
 
 	// Iterate over consumer sessions.
 	ctx := context.Background()
-	handler := exampleConsumerGroupHandler{}
+	handler := jsonConsumerGroupHandler{}
 	for {
 		// `Consume` should be called inside an infinite loop, when a
 		// server-side rebalance happens, the consumer session will need to be
